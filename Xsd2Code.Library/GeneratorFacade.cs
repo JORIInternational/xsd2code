@@ -4,7 +4,6 @@ using System.CodeDom.Compiler;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
-using System.Linq;
 using System.Reflection;
 using Xsd2Code.Library.Helpers;
 
@@ -31,7 +30,7 @@ namespace Xsd2Code.Library
         public GeneratorFacade(GeneratorParams generatorParams)
         {
             var provider = CodeDomProviderFactory.GetProvider(generatorParams.Language);
-            Init(provider, generatorParams);
+            this.Init(provider, generatorParams);
         }
 
         /// <summary>
@@ -41,7 +40,7 @@ namespace Xsd2Code.Library
         /// <param name="generatorParams">Generator parameters</param>
         public GeneratorFacade(CodeDomProvider provider, GeneratorParams generatorParams)
         {
-            Init(provider, generatorParams);
+            this.Init(provider, generatorParams);
         }
 
         /// <summary>
@@ -59,12 +58,12 @@ namespace Xsd2Code.Library
         /// <param name="generatorParams"></param>
         public void Init(CodeDomProvider provider, GeneratorParams generatorParams)
         {
-            providerField = provider;
+            this.providerField = provider;
             GeneratorContext.GeneratorParams = generatorParams.Clone();
 
             if (string.IsNullOrEmpty(GeneratorContext.GeneratorParams.OutputFilePath))
             {
-                string outputFilePath = Utility.GetOutputFilePath(generatorParams.InputFilePaths[0], provider);
+                string outputFilePath = Utility.GetOutputFilePath(generatorParams.InputFilePath, provider);
                 GeneratorContext.GeneratorParams.OutputFilePath = outputFilePath;
             }
         }
@@ -78,7 +77,7 @@ namespace Xsd2Code.Library
         public Result<byte[]> GenerateBytes()
         {
             string outputFilePath = Path.GetTempFileName();
-            var processResult = Process(outputFilePath);
+            var processResult = this.Process(outputFilePath);
 
             if (processResult.Success)
             {
@@ -106,7 +105,7 @@ namespace Xsd2Code.Library
         {
             GeneratorContext.GeneratorParams = generatorParams;
             var outputFileName = GeneratorContext.GeneratorParams.OutputFilePath;
-            var processResult = Process(outputFileName);
+            var processResult = this.Process(outputFileName);
             return new Result<string>(outputFileName, processResult.Success, processResult.Messages);
         }
 
@@ -117,7 +116,7 @@ namespace Xsd2Code.Library
         public Result<List<string>> Generate()
         {
             var outputFileName = GeneratorContext.GeneratorParams.OutputFilePath;
-            var processResult = Process(outputFileName);
+            var processResult = this.Process(outputFileName);
             return new Result<List<string>>(processResult.Entity, processResult.Success, processResult.Messages);
         }
 
@@ -150,21 +149,18 @@ namespace Xsd2Code.Library
             #region Change CurrentDir for include schema resolution.
 
             string savedCurrentDir = Directory.GetCurrentDirectory();
-            var firstInputFile = new FileInfo(GeneratorContext.GeneratorParams.InputFilePaths[0]);
+            var inputFile = new FileInfo(GeneratorContext.GeneratorParams.InputFilePath);
 
-            foreach (FileInfo inputFile in GeneratorContext.GeneratorParams.InputFilePaths.Select(filePath => new FileInfo(filePath)))
+            if (!inputFile.Exists)
             {
-                if (!inputFile.Exists)
-                {
-                    var errorMessage = string.Format("XSD File not found at location {0}\n", inputFile);
-                    errorMessage += "Exception :\n";
-                    errorMessage += string.Format("Input file {0} not exist", inputFile);
-                    return new Result<List<string>>(generatedFiles, false, MessageType.Error, errorMessage);
-                }
+                var errorMessage = string.Format("XSD File not found at location {0}\n", GeneratorContext.GeneratorParams.InputFilePath);
+                errorMessage += "Exception :\n";
+                errorMessage += string.Format("Input file {0} not exist", GeneratorContext.GeneratorParams.InputFilePath);
+                return new Result<List<string>>(generatedFiles, false, MessageType.Error, errorMessage);
             }
 
-            if (firstInputFile.Directory != null)
-                Directory.SetCurrentDirectory(firstInputFile.Directory.FullName);
+            if (inputFile.Directory != null)
+                Directory.SetCurrentDirectory(inputFile.Directory.FullName);
 
             #endregion
 
@@ -202,7 +198,7 @@ namespace Xsd2Code.Library
 
                             using (var outputStream = new StreamWriter(tempFileName, false))
                             {
-                                providerField.GenerateCodeFromCompileUnit(compileUnit, outputStream, new CodeGeneratorOptions());
+                                this.providerField.GenerateCodeFromCompileUnit(compileUnit, outputStream, new CodeGeneratorOptions());
                             }
                         }
                     }
@@ -212,7 +208,7 @@ namespace Xsd2Code.Library
                         generatedFiles.Add(fileName);
                         string tempFileName = fileName + ".tmp";
                         using (var outputStream = new StreamWriter(tempFileName, false))
-                            providerField.GenerateCodeFromNamespace(ns, outputStream, new CodeGeneratorOptions());
+                            this.providerField.GenerateCodeFromNamespace(ns, outputStream, new CodeGeneratorOptions());
                     }
                 }
                 catch (Exception e)

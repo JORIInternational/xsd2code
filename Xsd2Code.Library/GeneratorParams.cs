@@ -13,7 +13,7 @@ namespace Xsd2Code.Library
         public event PropertyChangedEventHandler PropertyChanged;
         public virtual void OnPropertyChanged(string info)
         {
-            PropertyChangedEventHandler handler = PropertyChanged;
+            PropertyChangedEventHandler handler = this.PropertyChanged;
             if (handler != null)
             {
                 handler(this, new PropertyChangedEventArgs(info));
@@ -93,22 +93,22 @@ namespace Xsd2Code.Library
         {
             get
             {
-                return automaticPropertiesField;
+                return this.automaticPropertiesField;
             }
 
             set
             {
                 if (value)
                 {
-                    if (mainParamsFields.TargetFramework != TargetFramework.Net20)
+                    if (this.mainParamsFields.TargetFramework != TargetFramework.Net20)
                     {
-                        automaticPropertiesField = true;
-                        mainParamsFields.EnableDataBinding = false;
+                        this.automaticPropertiesField = true;
+                        this.mainParamsFields.EnableDataBinding = false;
                     }
                 }
                 else
                 {
-                    automaticPropertiesField = false;
+                    this.automaticPropertiesField = false;
                 }
             }
         }
@@ -377,18 +377,18 @@ namespace Xsd2Code.Library
         /// </summary>
         public GeneratorParams(string inputXsdFile = "")
         {
-            Serialization.LoadFromFileMethodName = "LoadFromFile";
-            Serialization.SaveToFileMethodName = "SaveToFile";
-            Serialization.DeserializeMethodName = "Deserialize";
-            Serialization.SerializeMethodName = "Serialize";
-            GenericBaseClass.BaseClassName = "EntityBase";
-            GenericBaseClass.Enabled = false;
-            EnableInitializeFields = true;
-            Miscellaneous.ExcludeIncludedTypes = false;
-            TrackingChanges.PropertyChanged += TrackingChangesPropertyChanged;
-            Serialization.DefaultEncoder = DefaultEncoder.UTF8;
-            GenerateSeparateFiles = false;
-            OutputFilePath = string.IsNullOrEmpty(inputXsdFile) ? "" : Path.ChangeExtension(inputXsdFile, ".designer.cs");
+            this.Serialization.LoadFromFileMethodName = "LoadFromFile";
+            this.Serialization.SaveToFileMethodName = "SaveToFile";
+            this.Serialization.DeserializeMethodName = "Deserialize";
+            this.Serialization.SerializeMethodName = "Serialize";
+            this.GenericBaseClass.BaseClassName = "EntityBase";
+            this.GenericBaseClass.Enabled = false;
+            this.EnableInitializeFields = true;
+            this.Miscellaneous.ExcludeIncludedTypes = false;
+            this.TrackingChanges.PropertyChanged += TrackingChangesPropertyChanged;
+            this.Serialization.DefaultEncoder = DefaultEncoder.UTF8;
+            this.GenerateSeparateFiles = false;
+            this.OutputFilePath = string.IsNullOrEmpty(inputXsdFile) ? "" : Path.ChangeExtension(inputXsdFile, ".designer.cs");
         }
 
         /// <summary>
@@ -400,9 +400,9 @@ namespace Xsd2Code.Library
         {
             if (e.PropertyName == "Enabled")
             {
-                if (TrackingChanges.Enabled)
+                if (this.TrackingChanges.Enabled)
                 {
-                    EnableDataBinding = true;
+                    this.EnableDataBinding = true;
                 }
             }
         }
@@ -447,28 +447,11 @@ namespace Xsd2Code.Library
         public string OutputFilePath { get; set; }
 
         /// <summary>
-        /// Gets or sets the input file spaths.
-        /// </summary>
-        /// <value>The input files paths.</value>
-        [Browsable(false)]
-        public List<string> InputFilePaths { get; set; } = new List<string>();
-
-        /// <summary>
         /// Gets or sets the input file path.
         /// </summary>
         /// <value>The input file path.</value>
         [Browsable(false)]
-        public string InputFilePath
-        {
-            set
-            {
-                InputFilePaths = new List<string> { value };
-            }
-            get
-            {
-                return InputFilePaths[0];
-            }
-        }
+        public string InputFilePath { get; set; }
 
         /// <summary>
         /// Gets or sets collection type to use for code generation
@@ -477,8 +460,8 @@ namespace Xsd2Code.Library
         [Description("Set type of collection for unbounded elements")]
         public CollectionType CollectionObjectType
         {
-            get { return collectionObjectTypeField; }
-            set { collectionObjectTypeField = value; }
+            get { return this.collectionObjectTypeField; }
+            set { this.collectionObjectTypeField = value; }
         }
 
         /// <summary>
@@ -495,8 +478,8 @@ namespace Xsd2Code.Library
         [Description("list of custom using for CustomCollection")]
         public List<NamespaceParam> CustomUsings
         {
-            get { return customUsingsField; }
-            set { customUsingsField = value; }
+            get { return this.customUsingsField; }
+            set { this.customUsingsField = value; }
         }
 
         /// <summary>
@@ -516,19 +499,19 @@ namespace Xsd2Code.Library
         {
             get
             {
-                return enableDataBindingField;
+                return this.enableDataBindingField;
             }
 
             set
             {
-                enableDataBindingField = value;
-                if (enableDataBindingField)
+                this.enableDataBindingField = value;
+                if (this.enableDataBindingField)
                 {
-                    PropertyParams.AutomaticProperties = false;
+                    this.PropertyParams.AutomaticProperties = false;
                 }
                 else
                 {
-                    TrackingChanges.Enabled = false;
+                    this.TrackingChanges.Enabled = false;
                 }
             }
         }
@@ -551,15 +534,15 @@ namespace Xsd2Code.Library
         {
             get
             {
-                return targetFrameworkField;
+                return this.targetFrameworkField;
             }
 
             set
             {
-                targetFrameworkField = value;
-                if (targetFrameworkField == TargetFramework.Net20)
+                this.targetFrameworkField = value;
+                if (this.targetFrameworkField == TargetFramework.Net20)
                 {
-                    PropertyParams.AutomaticProperties = false;
+                    this.PropertyParams.AutomaticProperties = false;
                 }
             }
         }
@@ -885,45 +868,45 @@ namespace Xsd2Code.Library
         {
             // order does not matter, but would be nice to have same order as in parsing method 'LoadFromFile'
             var tagsAndValues = new Dictionary<string, object> {
-                { GeneratorContext.NAMESPACETAG, NameSpace },
-                { GeneratorContext.COLLECTIONTAG, CollectionObjectType },
-                { GeneratorContext.COLLECTIONBASETAG, CollectionBase },
-                { GeneratorContext.CODETYPETAG, Language },
-                { GeneratorContext.GENERATESEPARATEFILES, GenerateSeparateFiles },
-                { GeneratorContext.OUTPUTFILEPATH, OutputFilePath },
-                { GeneratorContext.ENABLEDATABINDINGTAG, EnableDataBinding },
-                { GeneratorContext.ENABLELAZYLOADINGTAG, PropertyParams.EnableLazyLoading },
-                { GeneratorContext.HIDEPRIVATEFIELDTAG, Miscellaneous.HidePrivateFieldInIde },
-                { GeneratorContext.ENABLESUMMARYCOMMENTTAG, Miscellaneous.EnableSummaryComment },
-                { GeneratorContext.ENABLETRACKINGCHANGESTAG, TrackingChanges.Enabled },
-                { GeneratorContext.GENERATETRACKINGCLASSESTAG, TrackingChanges.GenerateTrackingClasses },
-                { GeneratorContext.ENABLEVIRTUALPROPERTIESTAG, PropertyParams.EnableVirtualProperties },
-                { GeneratorContext.INCLUDESERIALIZEMETHODTAG, Serialization.Enabled },
-                { GeneratorContext.ENABLEENCODINGTAG, Serialization.EnableEncoding },
-                { GeneratorContext.DEFAULTENCODERTAG, Serialization.DefaultEncoder },
-                { GeneratorContext.USEGENERICBASECLASSTAG, GenericBaseClass.Enabled },
-                { GeneratorContext.BASECLASSNAMETAG, GenericBaseClass.BaseClassName },
-                { GeneratorContext.GENERATEBASECLASSTAG, GenericBaseClass.GenerateBaseClass },
-                { GeneratorContext.GENERATECLONEMETHODTAG, GenerateCloneMethod },
-                { GeneratorContext.GENERATEDATACONTRACTSTAG, GenerateDataContracts },
-                { GeneratorContext.CODEBASETAG, TargetFramework },
-                { GeneratorContext.SERIALIZEMETHODNAMETAG, Serialization.SerializeMethodName },
-                { GeneratorContext.DESERIALIZEMETHODNAMETAG, Serialization.DeserializeMethodName },
-                { GeneratorContext.SAVETOFILEMETHODNAMETAG, Serialization.SaveToFileMethodName },
-                { GeneratorContext.LOADFROMFILEMETHODNAMETAG, Serialization.LoadFromFileMethodName },
-                { GeneratorContext.GENERATEXMLATTRIBUTESTAG, Serialization.GenerateXmlAttributes },
-                { GeneratorContext.ORDERXMLATTRIBUTETAG, Serialization.GenerateOrderXmlAttributes },
-                { GeneratorContext.AUTOMATICPROPERTIESTAG, PropertyParams.AutomaticProperties },
-                { GeneratorContext.GENERATESHOULDSERIALIZETAG, PropertyParams.GenerateShouldSerializeProperty },
-                { GeneratorContext.DISABLEDEBUGTAG, Miscellaneous.DisableDebug },
-                { GeneratorContext.GENERATEPROPERTYNAMESPECIFIEDTAG, PropertyParams.GeneratePropertyNameSpecified },
-                { GeneratorContext.EXCLUDEINCLUDEDTYPESTAG, Miscellaneous.ExcludeIncludedTypes },
-                { GeneratorContext.ENABLEINITIALIZEFIELDSTAG, EnableInitializeFields }
+                { GeneratorContext.NAMESPACETAG, this.NameSpace },
+                { GeneratorContext.COLLECTIONTAG, this.CollectionObjectType },
+                { GeneratorContext.COLLECTIONBASETAG, this.CollectionBase },
+                { GeneratorContext.CODETYPETAG, this.Language },
+                { GeneratorContext.GENERATESEPARATEFILES, this.GenerateSeparateFiles },
+                { GeneratorContext.OUTPUTFILEPATH, this.OutputFilePath },
+                { GeneratorContext.ENABLEDATABINDINGTAG, this.EnableDataBinding },
+                { GeneratorContext.ENABLELAZYLOADINGTAG, this.PropertyParams.EnableLazyLoading },
+                { GeneratorContext.HIDEPRIVATEFIELDTAG, this.Miscellaneous.HidePrivateFieldInIde },
+                { GeneratorContext.ENABLESUMMARYCOMMENTTAG, this.Miscellaneous.EnableSummaryComment },
+                { GeneratorContext.ENABLETRACKINGCHANGESTAG, this.TrackingChanges.Enabled },
+                { GeneratorContext.GENERATETRACKINGCLASSESTAG, this.TrackingChanges.GenerateTrackingClasses },
+                { GeneratorContext.ENABLEVIRTUALPROPERTIESTAG, this.PropertyParams.EnableVirtualProperties },
+                { GeneratorContext.INCLUDESERIALIZEMETHODTAG, this.Serialization.Enabled },
+                { GeneratorContext.ENABLEENCODINGTAG, this.Serialization.EnableEncoding },
+                { GeneratorContext.DEFAULTENCODERTAG, this.Serialization.DefaultEncoder },
+                { GeneratorContext.USEGENERICBASECLASSTAG, this.GenericBaseClass.Enabled },
+                { GeneratorContext.BASECLASSNAMETAG, this.GenericBaseClass.BaseClassName },
+                { GeneratorContext.GENERATEBASECLASSTAG, this.GenericBaseClass.GenerateBaseClass },
+                { GeneratorContext.GENERATECLONEMETHODTAG, this.GenerateCloneMethod },
+                { GeneratorContext.GENERATEDATACONTRACTSTAG, this.GenerateDataContracts },
+                { GeneratorContext.CODEBASETAG, this.TargetFramework },
+                { GeneratorContext.SERIALIZEMETHODNAMETAG, this.Serialization.SerializeMethodName },
+                { GeneratorContext.DESERIALIZEMETHODNAMETAG, this.Serialization.DeserializeMethodName },
+                { GeneratorContext.SAVETOFILEMETHODNAMETAG, this.Serialization.SaveToFileMethodName },
+                { GeneratorContext.LOADFROMFILEMETHODNAMETAG, this.Serialization.LoadFromFileMethodName },
+                { GeneratorContext.GENERATEXMLATTRIBUTESTAG, this.Serialization.GenerateXmlAttributes },
+                { GeneratorContext.ORDERXMLATTRIBUTETAG, this.Serialization.GenerateOrderXmlAttributes },
+                { GeneratorContext.AUTOMATICPROPERTIESTAG, this.PropertyParams.AutomaticProperties },
+                { GeneratorContext.GENERATESHOULDSERIALIZETAG, this.PropertyParams.GenerateShouldSerializeProperty },
+                { GeneratorContext.DISABLEDEBUGTAG, this.Miscellaneous.DisableDebug },
+                { GeneratorContext.GENERATEPROPERTYNAMESPECIFIEDTAG, this.PropertyParams.GeneratePropertyNameSpecified },
+                { GeneratorContext.EXCLUDEINCLUDEDTYPESTAG, this.Miscellaneous.ExcludeIncludedTypes },
+                { GeneratorContext.ENABLEINITIALIZEFIELDSTAG, this.EnableInitializeFields }
             };
-            if (CustomUsings != null)
+            if (this.CustomUsings != null)
             {
                 tagsAndValues.Add(GeneratorContext.CUSTOMUSINGSTAG, string.Join(";",
-                    CustomUsings.Select(x => x.NameSpace).Where(usingNamespace => !string.IsNullOrEmpty(usingNamespace)).ToArray()));
+                    this.CustomUsings.Select(x => x.NameSpace).Where(usingNamespace => !string.IsNullOrEmpty(usingNamespace)).ToArray()));
             }
 
             var optionsLine = new StringBuilder();
@@ -957,63 +940,63 @@ namespace Xsd2Code.Library
 
             #region Validate input
 
-            if (string.IsNullOrEmpty(NameSpace))
+            if (string.IsNullOrEmpty(this.NameSpace))
             {
                 result.Success = false; result.Messages.Add(MessageType.Error, "you must specify the NameSpace");
             }
 
-            if (CollectionObjectType.ToString() == CollectionType.DefinedType.ToString())
+            if (this.CollectionObjectType.ToString() == CollectionType.DefinedType.ToString())
             {
-                if (string.IsNullOrEmpty(CollectionBase))
+                if (string.IsNullOrEmpty(this.CollectionBase))
                 {
                     result.Success = false; result.Messages.Add(MessageType.Error, "you must specify the custom collection base type");
                 }
             }
 
-            if (Serialization.Enabled)
+            if (this.Serialization.Enabled)
             {
-                if (string.IsNullOrEmpty(Serialization.SerializeMethodName))
+                if (string.IsNullOrEmpty(this.Serialization.SerializeMethodName))
                 {
                     result.Success = false; result.Messages.Add(MessageType.Error, "you must specify the Serialize method name.");
                 }
 
-                if (!IsValidMethodName(Serialization.SerializeMethodName))
+                if (!IsValidMethodName(this.Serialization.SerializeMethodName))
                 {
                     result.Success = false; result.Messages.Add(MessageType.Error, string.Format("Serialize method name {0} is invalid.",
-                                                  Serialization.SerializeMethodName));
+                                                  this.Serialization.SerializeMethodName));
                 }
 
-                if (string.IsNullOrEmpty(Serialization.DeserializeMethodName))
+                if (string.IsNullOrEmpty(this.Serialization.DeserializeMethodName))
                 {
                     result.Success = false; result.Messages.Add(MessageType.Error, "you must specify the Deserialize method name.");
                 }
 
-                if (!IsValidMethodName(Serialization.DeserializeMethodName))
+                if (!IsValidMethodName(this.Serialization.DeserializeMethodName))
                 {
                     result.Success = false; result.Messages.Add(MessageType.Error, string.Format("Deserialize method name {0} is invalid.",
-                                                  Serialization.DeserializeMethodName));
+                                                  this.Serialization.DeserializeMethodName));
                 }
 
-                if (string.IsNullOrEmpty(Serialization.SaveToFileMethodName))
+                if (string.IsNullOrEmpty(this.Serialization.SaveToFileMethodName))
                 {
                     result.Success = false; result.Messages.Add(MessageType.Error, "you must specify the save to XML file method name.");
                 }
 
-                if (!IsValidMethodName(Serialization.SaveToFileMethodName))
+                if (!IsValidMethodName(this.Serialization.SaveToFileMethodName))
                 {
                     result.Success = false; result.Messages.Add(MessageType.Error, string.Format("Save to file method name {0} is invalid.",
-                                                  Serialization.SaveToFileMethodName));
+                                                  this.Serialization.SaveToFileMethodName));
                 }
 
-                if (string.IsNullOrEmpty(Serialization.LoadFromFileMethodName))
+                if (string.IsNullOrEmpty(this.Serialization.LoadFromFileMethodName))
                 {
                     result.Success = false; result.Messages.Add(MessageType.Error, "you must specify the load from XML file method name.");
                 }
 
-                if (!IsValidMethodName(Serialization.LoadFromFileMethodName))
+                if (!IsValidMethodName(this.Serialization.LoadFromFileMethodName))
                 {
                     result.Success = false; result.Messages.Add(MessageType.Error, string.Format("Load from file method name {0} is invalid.",
-                                                  Serialization.LoadFromFileMethodName));
+                                                  this.Serialization.LoadFromFileMethodName));
                 }
             }
 
