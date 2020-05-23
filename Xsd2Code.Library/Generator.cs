@@ -101,7 +101,7 @@ namespace Xsd2Code.Library
 
                 #region Get XmlTypeMapping
 
-                XmlSchema xsd;
+                XmlSchema xsd = null;
                 var schemas = new XmlSchemas();
 
                 foreach (string inputFilePath in generatorParams.InputFilePaths)
