@@ -104,47 +104,44 @@ namespace Xsd2Code.Library
                 XmlSchema xsd;
                 var schemas = new XmlSchemas();
 
-                foreach (string inputFilePath in generatorParams.InputFilePaths)
+                reader = XmlReader.Create(generatorParams.InputFilePath);
+                xsd = XmlSchema.Read(reader, new ValidationEventHandler(Validate));
+
+
+                var schemaSet = new XmlSchemaSet();
+                schemaSet.ValidationEventHandler += new ValidationEventHandler(Validate);
+
+                schemaSet.XmlResolver = new XmlUrlResolver();
+                schemaSet.Add(xsd);
+
+                schemaSet.Compile();
+
+                foreach (XmlSchema schema in schemaSet.Schemas())
                 {
-                    reader = XmlReader.Create(inputFilePath);
-                    xsd = XmlSchema.Read(reader, new ValidationEventHandler(Validate));
+                    schemas.Add(schema);
+                }
 
+                var exporter = new XmlCodeExporter(ns);
 
-                    var schemaSet = new XmlSchemaSet();
-                    schemaSet.ValidationEventHandler += new ValidationEventHandler(Validate);
+                var generationOptions = CodeGenerationOptions.None;
+                if (generatorParams.Serialization.GenerateOrderXmlAttributes)
+                {
+                    generationOptions = CodeGenerationOptions.GenerateOrder;
+                }
 
-                    schemaSet.XmlResolver = new XmlUrlResolver();
-                    schemaSet.Add(xsd);
+                var importer = new XmlSchemaImporter(schemas, generationOptions, new ImportContext(new CodeIdentifiers(), false));
 
-                    schemaSet.Compile();
+                foreach (XmlSchemaElement element in xsd.Elements.Values)
+                {
+                    var mapping = importer.ImportTypeMapping(element.QualifiedName);
+                    exporter.ExportTypeMapping(mapping);
+                }
 
-                    foreach (XmlSchema schema in schemaSet.Schemas())
-                    {
-                        schemas.Add(schema);
-                    }
-
-                    var exporter = new XmlCodeExporter(ns);
-
-                    var generationOptions = CodeGenerationOptions.None;
-                    if (generatorParams.Serialization.GenerateOrderXmlAttributes)
-                    {
-                        generationOptions = CodeGenerationOptions.GenerateOrder;
-                    }
-
-                    var importer = new XmlSchemaImporter(schemas, generationOptions, new ImportContext(new CodeIdentifiers(), false));
-
-                    foreach (XmlSchemaElement element in xsd.Elements.Values)
-                    {
-                        var mapping = importer.ImportTypeMapping(element.QualifiedName);
-                        exporter.ExportTypeMapping(mapping);
-                    }
-
-                    //Fixes/handles http://xsd2code.codeplex.com/WorkItem/View.aspx?WorkItemId=6941
-                    foreach (XmlSchemaType type in xsd.Items.OfType<XmlSchemaType>())
-                    {
-                        var mapping = importer.ImportSchemaType(type.QualifiedName);
-                        exporter.ExportTypeMapping(mapping);
-                    }
+                //Fixes/handles http://xsd2code.codeplex.com/WorkItem/View.aspx?WorkItemId=6941
+                foreach (XmlSchemaType type in xsd.Items.OfType<XmlSchemaType>())
+                {
+                    var mapping = importer.ImportSchemaType(type.QualifiedName);
+                    exporter.ExportTypeMapping(mapping);
                 }
 
                 #endregion
@@ -173,7 +170,7 @@ namespace Xsd2Code.Library
             }
         }
 
-        private static void Validate(object sender, ValidationEventArgs e)
+        private static void Validate(Object sender, ValidationEventArgs e)
         {
             if (e.Severity == XmlSeverityType.Warning)
                 Console.Write("WARNING: " + e.Message);
