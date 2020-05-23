@@ -4,19 +4,23 @@
 // </copyright>
 //------------------------------------------------------------------------------
 
+using EnvDTE;
+using Microsoft.VisualStudio;
+using Microsoft.VisualStudio.Shell;
+using Microsoft.VisualStudio.Shell.Interop;
 using System;
+using System.Collections.Generic;
 using System.ComponentModel.Design;
-using System.Globalization;
 using Microsoft.VisualStudio.Shell;
 using Microsoft.VisualStudio.Shell.Interop;
 using Microsoft.VisualStudio;
 using System.IO;
 using System.Runtime.InteropServices;
-using EnvDTE;
 using System.Windows.Forms;
-using Xsd2Code.Library;
 using Xsd2Code.ConfigurationForm;
+using Xsd2Code.Library;
 using Xsd2Code.Library.Helpers;
+using Task = System.Threading.Tasks.Task;
 
 namespace Xsd2Code.vsPackage
 {
@@ -35,33 +39,41 @@ namespace Xsd2Code.vsPackage
         /// </summary>
         public static readonly Guid CommandSet = new Guid("b28b1de2-6cf0-4ff6-8a20-0123954dc58c");
 
-        /// <summary>
-        /// VS Package that provides this command, not null.
-        /// </summary>
-        private readonly Package package;
+        public AsyncPackage Package { get; }
+
+        public DTE Dte { get; private set; }
 
         /// <summary>
         /// Initializes a new instance of the <see cref="GenerateCodeFromXSDCommand"/> class.
         /// Adds our command handlers for menu (commands must exist in the command table file)
         /// </summary>
         /// <param name="package">Owner package, not null.</param>
-        private GenerateCodeFromXSDCommand(Package package)
+        private GenerateCodeFromXSDCommand(AsyncPackage package)
         {
             if (package == null)
             {
                 throw new ArgumentNullException("package");
             }
 
-            this.package = package;
+            this.Package = package;
 
-            OleMenuCommandService commandService = this.ServiceProvider.GetService(typeof(IMenuCommandService)) as OleMenuCommandService;
+           
+        }
+
+        private async Task RegisterCommand()
+        {
+            IMenuCommandService commandService = await this.Package.GetServiceAsync(typeof(IMenuCommandService)) as IMenuCommandService;
             if (commandService != null)
             {
                 var menuCommandID = new CommandID(CommandSet, CommandId);
                 var menuItem = new OleMenuCommand(this.MenuItemCallback, menuCommandID); // using OleMenuCommand to have access to BeforeQueryStatus
                 menuItem.BeforeQueryStatus += menuCommand_BeforeQueryStatus;
+                // Switch to Main Thread before calling AddCommand which calls GetService() which should
+                // always be called on UI thread.
+                await ThreadHelper.JoinableTaskFactory.SwitchToMainThreadAsync();
                 commandService.AddCommand(menuItem);
             }
+            Dte = (DTE) await Package.GetServiceAsync(typeof(DTE));
         }
 
         /// <summary>
@@ -73,24 +85,11 @@ namespace Xsd2Code.vsPackage
             private set;
         }
 
-        /// <summary>
-        /// Gets the service provider from the owner package.
-        /// </summary>
-        private IServiceProvider ServiceProvider
-        {
-            get
-            {
-                return this.package;
-            }
-        }
-
-        /// <summary>
-        /// Initializes the singleton instance of the command.
-        /// </summary>
-        /// <param name="package">Owner package, not null.</param>
-        public static void Initialize(Package package)
+        // Asynchronous initialization
+        public static async Task InitializeAsync(AsyncPackage package)
         {
             Instance = new GenerateCodeFromXSDCommand(package);
+            await Instance.RegisterCommand();
         }
 
         /// <summary>
@@ -110,12 +109,10 @@ namespace Xsd2Code.vsPackage
         /// </summary>
         private void openConfigurationWindow()
         {
-
-
-            DTE dte = (DTE)ServiceProvider.GetService(typeof(DTE));
-
-            ProjectItem proitem = dte.SelectedItems.Item(1).ProjectItem;
+           
+            ProjectItem proitem = Dte.SelectedItems.Item(1).ProjectItem;
             Project proj = proitem.ContainingProject;
+            string projectDirectory = Path.GetDirectoryName(proj.FullName);
 
             // Try to get default nameSpace
             string defaultNamespace = string.Empty;
@@ -131,11 +128,10 @@ namespace Xsd2Code.vsPackage
             {
             }
 
-            CodeModel codeModel = proitem.ContainingProject.CodeModel;
-            string fileName = proitem.FileNames[0];
+            string xsdFileName = proitem.FileNames[0];
             try
             {
-                proitem.Save(fileName);
+                proitem.Save(xsdFileName);
             }
             catch (Exception)
             {
@@ -166,42 +162,73 @@ namespace Xsd2Code.vsPackage
                 }
             }
 
+            // We associate an outputfile with the selected XSD file to know were to look for the parameters
+            // TODO embed all the parameters as attributes of the XSD file in the project ?
+            IVsHierarchy hierarchy = null;
+            uint itemid;
+            string outputFile = null;
+            IVsBuildPropertyStorage buildPropertyStorage = null;
+            if (IsSingleProjectItemSelection(out hierarchy, out itemid))
+            {
+                buildPropertyStorage = hierarchy as IVsBuildPropertyStorage;
+                if (buildPropertyStorage != null)
+                {
+                    buildPropertyStorage.GetItemAttribute(itemid, "Xsd2CodeOutputFile", out outputFile);
+                }
+            }
+
             var frm = new FormOption();
-            frm.Init(fileName, proj.CodeModel.Language, defaultNamespace, framework);
+            frm.Init(xsdFileName, proj.CodeModel.Language, defaultNamespace, framework, outputFile);
 
             DialogResult result = frm.ShowDialog();
 
             GeneratorParams generatorParams = frm.GeneratorParams.Clone();
-            generatorParams.InputFilePath = fileName;
+            generatorParams.InputFilePath = xsdFileName;
 
             var gen = new GeneratorFacade(generatorParams);
 
-            // Close file if open in IDE
-            ProjectItem projElmts;
-            bool found = FindInProject(proj.ProjectItems, gen.GeneratorParams.OutputFilePath, out projElmts);
-            if (found)
-            {
-                Window window = projElmts.Open(EnvDTE.Constants.vsViewKindCode);
-                window.Close(vsSaveChanges.vsSaveChangesNo);
-            }
+            bool foundOutputFile = false;
 
-            if (fileName.Length > 0)
+            if (xsdFileName.Length > 0)
             {
                 if (result == DialogResult.OK)
                 {
-                    Result<string> generateResult = gen.Generate();
-                    string outputFileName = generateResult.Entity;
+                    // Close file if open in IDE
+                    ProjectItem projElmts = null;
+                    if (!String.IsNullOrEmpty(outputFile))
+                    {
+                        string rootedOutputFile = Path.IsPathRooted(outputFile) ? outputFile : Path.Combine(projectDirectory, outputFile);
+                        foundOutputFile = FindInProject(proj.ProjectItems, rootedOutputFile, out projElmts);
+                        if (foundOutputFile)
+                        {
+                            Window window = projElmts.Open(EnvDTE.Constants.vsViewKindCode);
+                            window.Close(vsSaveChanges.vsSaveChangesNo);
+                        }
+                    }
+
+                    Result<List<string>> generateResult = gen.Generate();
+                    List<string> outputFileNames = generateResult.Entity;
 
                     if (!generateResult.Success)
                         MessageBox.Show(generateResult.Messages.ToString(), "XSD2Code", MessageBoxButtons.OK, MessageBoxIcon.Error);
                     else
                     {
-                        if (!found)
+                        // Save one of the output file path so we can reada the parameters from it the next time
+                        if (buildPropertyStorage != null)
                         {
-                            projElmts = proitem.Collection.AddFromFile(outputFileName);
+                            buildPropertyStorage.SetItemAttribute(itemid, "Xsd2CodeOutputFile", outputFileNames[0]);
                         }
 
-                        if (frm.OpenAfterGeneration)
+                        // try again now that the generation occured
+                        string newRootedOutputFile = Path.Combine(projectDirectory, outputFileNames[0]);
+                        foundOutputFile = FindInProject(proj.ProjectItems, newRootedOutputFile, out projElmts);
+                        if (!foundOutputFile)
+                        {
+                            projElmts = proj.ProjectItems.AddFromFile(newRootedOutputFile);
+                        }
+
+
+                        if (frm.OpenAfterGeneration && projElmts != null)
                         {
                             Window window = projElmts.Open(EnvDTE.Constants.vsViewKindCode);
                             window.Activate();
@@ -210,7 +237,7 @@ namespace Xsd2Code.vsPackage
                             try
                             {
                                 // this.applicationObjectField.DTE.ExecuteCommand("Edit.RemoveAndSort", "");
-                                dte.ExecuteCommand("Edit.FormatDocument", string.Empty);
+                                Dte.ExecuteCommand("Edit.FormatDocument", string.Empty);
                             }
                             catch (Exception)
                             {
@@ -265,8 +292,8 @@ namespace Xsd2Code.vsPackage
             itemid = VSConstants.VSITEMID_NIL;
             int hr = VSConstants.S_OK;
 
-            var monitorSelection = Package.GetGlobalService(typeof(SVsShellMonitorSelection)) as IVsMonitorSelection;
-            var solution = Package.GetGlobalService(typeof(SVsSolution)) as IVsSolution;
+            var monitorSelection = Microsoft.VisualStudio.Shell.Package.GetGlobalService(typeof(SVsShellMonitorSelection)) as IVsMonitorSelection;
+            var solution = Microsoft.VisualStudio.Shell.Package.GetGlobalService(typeof(SVsSolution)) as IVsSolution;
             if (monitorSelection == null || solution == null)
             {
                 return false;
